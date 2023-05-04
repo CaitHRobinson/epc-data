@@ -167,7 +167,6 @@ NorthEast_EPC_PRS_OA_Combined$count_since2012[is.na(NorthEast_EPC_PRS_OA_Combine
 NorthEast_EPC_PRS_OA_Combined$count_parkhome[is.na(NorthEast_EPC_PRS_OA_Combined$count_parkhome)] <- 0
 NorthEast_EPC_PRS_OA_Combined$count_semidetached[is.na(NorthEast_EPC_PRS_OA_Combined$count_semidetached)] <- 0
 NorthEast_EPC_PRS_OA_Combined$count_detached[is.na(NorthEast_EPC_PRS_OA_Combined$count_detached)] <- 0
-```
 
 # Export datasets
 
