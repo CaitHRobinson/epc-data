@@ -17,28 +17,28 @@ library(dplyr)
 library(plyr)
 library(readr)
 
-# Import data from multiple csv. files at once
+# Import data from multiple csv. files at once (in this example I am working with 9 local authorities for the region)
 
 mydir = "NorthEast1" # Set directory as folder with all csv in
 myfiles = list.files(path=mydir, pattern="*.csv", full.names=TRUE) # Create list of csv file names 
 dat_csv_NorthEast = ldply(myfiles, read_csv) # Read in all csv files in the list
 write.csv(dat_csv_NorthEast, "NorthEast_EPC_UPRN.csv") 
 
-# Import shapefiles
+# Import shapefiles (in this example I am working with UPRN for working with property data, and OA for grouping properties into counts)
 
-NorthEast_OA <- st_read("NorthEast_OA.gpkg") # Read OA shapefile
-NorthEast_LAD <- st_read("NorthEast_LAD.gpkg") # Read LAD shapefile
-NorthEast_UPRN <- st_read("NorthEast_UPRN.gpkg") # Read LCR UPRN shapefile
+NorthEast_OA <- st_read("NorthEast_OA.gpkg") # Read OA geopackage
+NorthEast_UPRN <- st_read("NorthEast_UPRN.gpkg") # Read UPRN geopackage
 NorthEast_UPRN$UPRN <- as.character(NorthEast_UPRN$UPRN) # Convert UPRN to character
 plot(NorthEast_UPRN)
 
-# Join UPRN and EPC data
+# Join UPRN geopackage and EPC data
 
 ## Convert UPRN gpkg into a csv. with xy coordinates
 UPRN_XY_NorthEast <- st_write(NorthEast_UPRN, "UPRN_NorthEast_XY.csv", 
                     layer_options = "GEOMETRY=AS_XY") 
 
-UPRN_XY_NorthEast$UPRN <- as.character(UPRN_XY_NorthEast$UPRN)
+## Set UPRN code as character rather than number
+UPRN_XY_NorthEast$UPRN <- as.character(UPRN_XY_NorthEast$UPRN) 
 dat_csv_NorthEast$UPRN <- as.character(dat_csv_NorthEast$UPRN)
 
 ## Join two tables together so that all properties with EPC rating have a xy coordinate
@@ -54,21 +54,24 @@ target <- c("rental (private)", "Rented (private)")
 NorthEast_EPC_PRS <- UPRN_EPC_XY_NorthEast %>% 
   filter(TENURE %in% target)
 
-# Combine address fields
+# Combine multiple address fields into single field
 
 NorthEast_EPC_PRS$ADDRESS_COMBINED <- paste(NorthEast_EPC_PRS$ADDRESS1, 
                                             NorthEast_EPC_PRS$ADDRESS2, 
                                             NorthEast_EPC_PRS$ADDRESS3)
 
+# Group by address and slice data by most recent date
+
 NorthEast_EPC_PRS_RECENT <- NorthEast_EPC_PRS %>% group_by(ADDRESS_COMBINED) %>% 
-  slice(which.max(as.Date(INSPECTION_DATE, '%d/%m/%y'))) # Slice by most recent date
+  slice(which.max(as.Date(INSPECTION_DATE, '%d/%m/%y'))) 
 
 # Write as new geopackage
+
 st_write(NorthEast_EPC_PRS_RECENT, "NorthEast_EPC_PRS_UPRN.gpkg")
 
-# Calculate new variables from EPC ratings for Output Areas
+# Calculate new variables from EPC variables for Output Areas (here I am generating counts for OA)
 
-## Convert to sf format
+## Convert back to spatial features format
 NorthEast_EPC_PRS_RECENT <- st_as_sf(NorthEast_EPC_PRS_RECENT) 
 
 ## Count number of PRS properties with particular characteristic in each OA
@@ -106,7 +109,7 @@ NorthEast_EPC_PRS_OA <- NorthEast_OA %>%
                   count_mainheatpoor = sum(MAINHEAT_ENV_EFF == "Poor"),
                   count_mainheatverypoor = sum(MAINHEAT_ENV_EFF == "Very Poor"))
                   
-## Ensure variables are numeric
+## Ensure new variables are numeric format
 NorthEast_EPC_PRS_OA$count_current_D <- as.numeric(NorthEast_EPC_PRS_OA$count_current_D) 
 NorthEast_EPC_PRS_OA$count_current_E <- as.numeric(NorthEast_EPC_PRS_OA$count_current_E)
 NorthEast_EPC_PRS_OA$count_current_F <- as.numeric(NorthEast_EPC_PRS_OA$count_current_F)
@@ -136,7 +139,7 @@ NorthEast_EPC_PRS_OA$count_wallsverypoor <- as.numeric(NorthEast_EPC_PRS_OA$coun
 NorthEast_EPC_PRS_OA$count_mainheatpoor <- as.numeric(NorthEast_EPC_PRS_OA$count_mainheatpoor)
 NorthEast_EPC_PRS_OA$count_mainheatverypoor <- as.numeric(NorthEast_EPC_PRS_OA$count_mainheatverypoor)
 
-## Group some variables to make summary variables
+## Group some variables to create summary variable
 NorthEast_EPC_PRS_OA_Combined <- NorthEast_EPC_PRS_OA %>% 
   mutate(count_current_DandBelow = count_current_D + count_current_E 
                                   + count_current_F + count_current_G,
